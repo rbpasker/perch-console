@@ -1,5 +1,4 @@
 import React from "react";
-import { JsonToTable } from "react-json-to-table";
 
 export default class Comp extends React.Component {
 
@@ -8,7 +7,7 @@ export default class Comp extends React.Component {
     constructor(props) {
 	super(props);
 	this.state = { 
-	    rows: [],  // rows of the table
+	    rows: [{"count":"count","date":"date","tick":"tick"}],  // rows of the table
 	    ws: null   // websocket
 	};
     }
@@ -73,23 +72,25 @@ export default class Comp extends React.Component {
 
 
     appendRow(message) {
-	var joined = this.state.rows.concat(
-		<tr>
-		<td>
-		<JsonToTable json={JSON.parse(message)} />
-		</td>
-		</tr>
-	);
-	this.setState({ rows: joined });
+	const newrows = this.state.rows.concat([JSON.parse(message)]);
+	//console.log(newrows);
+	this.setState({ rows: newrows});
     }
 
     render() {
 	return (
 		<div>
 		Connected: {this.state.ws==null?"Closed":"Connected"}
-		<table>
+		<table border="1">
 		<thead />
-		<tbody>{this.state.rows}</tbody>
+		<tbody>{this.state.rows.map(row => 
+					    <tr key={row.count}> 
+					    <td>{row.count}</td> 
+					    <td>{row.date}</td> 
+					    <td>{row.tick}</td> 
+					    </tr>)
+		       }</tbody>
+
 		</table>
 		</div>
 	);

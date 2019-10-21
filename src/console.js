@@ -28,7 +28,7 @@ wss.on('connection', function(ws, request) {
 	console.log("SEND tick");
 	ws.send(JSON.stringify({"tick": "tick",
 				"date": new Date(),
-				"couint": count++}));
+				"count": count++}));
     }, 1000);
 
     
