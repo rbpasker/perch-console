@@ -18,27 +18,28 @@ export default class Comp extends React.Component {
     }
 
     connect = () => {
-        var ws = new WebSocket("ws://localhost:8080/ws");
+        var newws = new WebSocket("ws://localhost:8080/ws");
         let that = this; // cache the this
         var connectInterval;
 
-	ws.onmessage = message => {
+	newws.onmessage = message => {
 	    console.log(`MESSAGE ${message.data} `);
 	    this.appendRow(message.data);
 	};
     
         // websocket onopen event listener
-        ws.onopen = () => {
+        newws.onopen = () => {
             console.log("connected websocket main component");
 
-            this.setState({ ws: ws });
+            this.setState({ ws: newws });
 
             that.timeout = 250; // reset timer to 250 on open of websocket connection 
             clearTimeout(connectInterval); // clear Interval on on open of websocket connection
         };
 
         // websocket onclose event listener
-        ws.onclose = e => {
+        newws.onclose = e => {
+	    this.setState({ws:null});
             console.log(
                 `Socket is closed. Reconnect will be attempted in ${Math.min(
                     10000 / 1000,
@@ -52,14 +53,14 @@ export default class Comp extends React.Component {
         };
 
         // websocket onerror event listener
-        ws.onerror = err => {
+        newws.onerror = err => {
             console.error(
                 "Socket encountered error: ",
                 err.message,
                 "Closing socket"
             );
 
-            ws.close();
+            newws.close();
         };
     };
 
@@ -67,8 +68,9 @@ export default class Comp extends React.Component {
      * utilited by the @function connect to check if the connection is close, if so attempts to reconnect
      */
     check = () => {
-        const { ws } = this.state;
-        if (!ws || ws.readyState === WebSocket.CLOSED) this.connect(); //check if websocket instance is closed, if so call `connect` function.
+        const { oldws } = this.state;
+        if (!oldws || oldws.readyState === WebSocket.CLOSED)
+	    this.connect(); //check if websocket instance is closed, if so call `connect` function.
     };
 
     appendRow(message) {
@@ -85,6 +87,7 @@ export default class Comp extends React.Component {
     render() {
 	return (
 		<div>
+		Connected: {this.state.ws==null?"Closed":"Connected"}
 		<table>
 		<thead />
 		<tbody>{this.state.rows}</tbody>
