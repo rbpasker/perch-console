@@ -20,11 +20,15 @@ app.use(express.static('public'));
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+var count = 0;
+
 wss.on('connection', function(ws, request) {
     
     const id = setInterval(function() {
 	console.log("SEND tick");
-	ws.send("tick" + new Date());
+	ws.send(JSON.stringify({"tick": "tick",
+				"date": new Date(),
+				"couint": count++}));
     }, 1000);
 
     

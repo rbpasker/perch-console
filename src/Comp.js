@@ -1,4 +1,5 @@
 import React from "react";
+import { JsonToTable } from "react-json-to-table";
 
 export default class Comp extends React.Component {
 
@@ -7,8 +8,8 @@ export default class Comp extends React.Component {
     constructor(props) {
 	super(props);
 	this.state = { 
-	    rows: [], 
-	    ws: null
+	    rows: [],  // rows of the table
+	    ws: null   // websocket
 	};
     }
     
@@ -18,49 +19,45 @@ export default class Comp extends React.Component {
     }
 
     connect = () => {
-        var newws = new WebSocket("ws://localhost:8080/ws");
+        var thews = new WebSocket("ws://localhost:8080/ws");
         let that = this; // cache the this
         var connectInterval;
 
-	newws.onmessage = message => {
+	// when a message is received
+	thews.onmessage = message => {
 	    console.log(`MESSAGE ${message.data} `);
 	    this.appendRow(message.data);
 	};
     
         // websocket onopen event listener
-        newws.onopen = () => {
+        thews.onopen = () => {
             console.log("connected websocket main component");
-
-            this.setState({ ws: newws });
-
+            this.setState({ ws: thews }); // save the ws into the component state
             that.timeout = 250; // reset timer to 250 on open of websocket connection 
             clearTimeout(connectInterval); // clear Interval on on open of websocket connection
         };
 
         // websocket onclose event listener
-        newws.onclose = e => {
+        thews.onclose = e => {
 	    this.setState({ws:null});
+            that.timeout = Math.min(10000, 2 * that.timeout); // backoff 2x, but not > 10sec
             console.log(
-                `Socket is closed. Reconnect will be attempted in ${Math.min(
-                    10000 / 1000,
-                    (that.timeout + that.timeout) / 1000
-                )} second.`,
+                `Socket is closed. Reconnect will be attempted in ${that.timeout} mSeconds.`,
                 e.reason
             );
 
-            that.timeout = that.timeout + that.timeout; //increment retry interval
-            connectInterval = setTimeout(this.check, Math.min(10000, that.timeout)); //call check function after timeout
+            connectInterval = setTimeout(this.check, that.timeout);
         };
 
         // websocket onerror event listener
-        newws.onerror = err => {
+        thews.onerror = err => {
             console.error(
                 "Socket encountered error: ",
                 err.message,
                 "Closing socket"
             );
 
-            newws.close();
+            thews.close();
         };
     };
 
@@ -73,11 +70,13 @@ export default class Comp extends React.Component {
 	    this.connect(); //check if websocket instance is closed, if so call `connect` function.
     };
 
+
+
     appendRow(message) {
 	var joined = this.state.rows.concat(
 		<tr>
 		<td>
-		{message}
+		<JsonToTable json={JSON.parse(message)} />
 		</td>
 		</tr>
 	);
