@@ -24,7 +24,7 @@ wss.on('connection', function(ws, request) {
     
     const id = setInterval(function() {
 	console.log("SEND tick");
-	ws.send("tick");
+	ws.send("tick" + new Date());
     }, 1000);
 
     
