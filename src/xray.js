@@ -5,10 +5,13 @@ const typeDisable	= "disable";
 const typeError		= "error";
 const typeData		= "data";
 
-class XRayConsumer {
+const WebSocket = require('ws');
+
+class XRayManager {
     timeout = 250;
     theWS = null;
     port = 9729; // port = XRAY
+    theWss = null;
 
     // genericcommand actions
     oncommands(message)	{ return {} }; // empty response
@@ -23,7 +26,7 @@ class XRayConsumer {
 	// log incoming messages 
 	console.log(`XRAY: rcvd: ${messageJ}`);
 	// dispatcher
-	     if (messageJ.command == messageCommands) oncommands(messageJ.message);
+	if (messageJ.command == messageCommands) oncommands(messageJ.message);
 	else if (messageJ.command == messageEnable)   onenable(messageJ.message);
 	else if (messageJ.command == messageDisable)  ondisable(messageJ.message);
 	else if (messageJ.command == messageData)     ondata(messageJ.message);
@@ -57,13 +60,13 @@ class XRayConsumer {
 
     connect(host) {
 	var theWS = new WebSocket(`ws://${host}:${this.port}`);
-	that = this;
+	var that = this;
 
 	// wire in the dispatcher
 	theWS.onmessage = message => dispatch(message);
 
         // if socket is closed, then backoff and retry
-        theWS.onclose = e => {
+        theWS.onclose = function(e) {
             that.timeout = Math.min(10000, 2 * that.timeout); // backoff 2x, but not > 10sec
             console.log(
                 `Socket is closed. reconnecting in ${that.timeout} mSeconds.`,
@@ -73,30 +76,32 @@ class XRayConsumer {
             connectInterval = setTimeout(this.check, that.timeout);
         };
 
-	check = () => {
+	function check() {
 	    if (!this.ws || this.ws.readyState === WebSocket.CLOSED)
 		this.connect(); // if we don't have a ws, or its closed, then reopen
-	    };
+	};
     }
 
     // this is the server code
+
+    broadcast(json_msg) {
+	this.theWss.clients.forEach( client => {
+	    if (client.readyState === WebSocket.OPEN) {
+		client.send(json_msg);
+	    }
+	});
+    };
+    
+
     listen() {
-	const wss = new WebSocket.Server({ server });
+	this.theWss = new WebSocket.Server({"port":this.port});
 
-	function broadcast(json_msg) {
-	    wss.clients.forEach( client => {
-		if (client.readyState === WebSocket.OPEN) {
-		    client.send(json_msg);
-		}
-	    });
-	};
-
-	wss.on('message', function (ws, message)  {
+	this.theWss.on('message', function (ws, message)  {
 	    pass;
 	});
 
-	wss.on('connection', function(ws, request) {
-    
+	this.theWss.on('connection', function(ws, request) {
+	    
 	    console.log("Connected to" + ws._socket.remoteAddress);
 	    
 	    ws.on('message', function(message) {
@@ -120,31 +125,33 @@ class XRayConsumer {
     
 }
 
-class XRayProducer {
+// we funnel all the xray producers to the client
+class XRayServer {
 
     constructor() {
 	this.ids = new Map();
 	this.enabled = new Map();
-	this.wsm = new WSManager();
-	this.wsm.enable = this.enable;
-	this.wsm.disable = this.disable;
-	this.wsm.getCommands = this.getCOmmands;
+	this.xrm = new XRayManager();
+	this.xrm.enable = this.enable;
+	this.xrm.disable = this.disable;
+	this.xrm.getCommands = this.getCommands;
+	this.xrm.listen();
     }
 
-    add(cmd,id) {
-	this.ids[id] = xray;
-	this.disable(id);
+    add(id,proto) {
+	this.ids[id] = proto; // a map id->prototype
+	this.enable(id); // enabled by default
 	return
     }
 
-    enable(cmd,id) {
-	this.enabled(id) = True;
-	return {cmd,id};
+    enable(id) {
+	this.enabled[id] = true;
+	return true;
     }
 
-    disable(cmd,id) {
-	this.enabled(id) = False;
-	return {cmd,id};
+    disable(id) {
+	this.enabled[id] = false;
+	return false;
     }
     getCommands() {
 	ids_string = JSON.stringify(this.ids);
@@ -152,8 +159,8 @@ class XRayProducer {
     }
 
     send(id, message) {
-	if (this.enabled(id)) {
-	    ws.send(
+	if (this.enabled[id]) {
+	    this.xrm.broadcast(
 		{
 		    "type"    : typeMessage,
 		    "id"      : id,
@@ -163,19 +170,22 @@ class XRayProducer {
 
 }
 
-//xrm = new XRayManager();
-// class xray {
-//     construcftor(id, proto) {
-// 	this.id = id;
-// 	this.proto = proto;
-// 	xrm.add(id, this);
-//     }
+//singleton server
+xrs = new XRayServer();
 
-//     send(message) {
-// 	// perhaps we should check message keys against prototype keys	
-// 	xrm.send(this.id, message);
-//     }
+// each package is a producer that generates messages
+class XRayProducer {
+    constructor(id, proto) {
+ 	this.id = id;
+	console.log(this.id);
+ 	xrs.add(id, this);
+    }
+
+    send(message) {
+ 	// perhaps we should check message keys against prototype keys	
+ 	xrs.send(this.id, message);
+    }
     
-// }
+}
 
-module.exports = {XRayProducer, XRayConsumer};
+module.exports = {XRayProducer};
