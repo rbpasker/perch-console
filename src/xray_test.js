@@ -1,0 +1,1 @@
+const XRayProducer = require('./xray');
