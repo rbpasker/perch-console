@@ -170,12 +170,15 @@ class XRayServer {
 
 }
 
-//singleton server
-xrs = new XRayServer();
 
 // each package is a producer that generates messages
 class XRayProducer {
+    xrs = null;
     constructor(id, proto) {
+	if (xrs==null) {
+	    xrs = new XRayServer();
+	    console.log("New server");
+	}
  	this.id = id;
 	console.log(this.id);
  	xrs.add(id, this);
