@@ -3,11 +3,16 @@ import React from "react";
 export default class Comp extends React.Component {
 
     timeout = 250; // Initial timeout duration as a class variable
+    count = 1;
 
     constructor(props) {
 	super(props);
 	this.state = { 
-	    rows: [{"count":"count","date":"date","tick":"tick"}],  // rows of the table
+	    rows: [{"hostname":"hostname",
+		    "campaign":"campaign",
+		    "product":"product",
+		    "actions":"actions",
+		    "button":"button"}],
 	    ws: null   // websocket
 	};
     }
@@ -18,19 +23,19 @@ export default class Comp extends React.Component {
     }
 
     connect = () => {
-        var thews = new WebSocket("ws://localhost:8080/ws");
+        var thews = new WebSocket("ws://192.168.200.97:2027/ws");
         let that = this; // cache the this
         var connectInterval;
 
 	// when a message is received
 	thews.onmessage = message => {
-	    console.log(`MESSAGE ${message.data} `);
+	    //console.log(`MESSAGE ${message.data} `);
 	    this.appendRow(message.data);
 	};
     
         // websocket onopen event listener
         thews.onopen = () => {
-            console.log("connected websocket main component");
+            console.log("Socket opened");
             this.setState({ ws: thews }); // save the ws into the component state
             that.timeout = 250; // reset timer to 250 on open of websocket connection 
             clearTimeout(connectInterval); // clear Interval on on open of websocket connection
@@ -41,7 +46,7 @@ export default class Comp extends React.Component {
 	    this.setState({ws:null});
             that.timeout = Math.min(10000, 2 * that.timeout); // backoff 2x, but not > 10sec
             console.log(
-                `Socket is closed. Reconnect will be attempted in ${that.timeout} mSeconds.`,
+                `Socket is closed. reconnect in ${that.timeout} mSeconds.`,
                 e.reason
             );
 
@@ -72,22 +77,25 @@ export default class Comp extends React.Component {
 
 
     appendRow(message) {
-	const newrows = this.state.rows.concat([JSON.parse(message)]);
-	//console.log(newrows);
+	const row = JSON.parse(message);
+	row.count = this.count++
+	const newrows = this.state.rows.concat([row]);
 	this.setState({ rows: newrows});
     }
 
     render() {
 	return (
 		<div>
-		Connected: {this.state.ws==null?"Closed":"Connected"}
+		Connection: {this.state.ws==null?"Closed":"Connected"}
 		<table border="1">
 		<thead />
 		<tbody>{this.state.rows.map(row => 
 					    <tr key={row.count}> 
-					    <td>{row.count}</td> 
-					    <td>{row.date}</td> 
-					    <td>{row.tick}</td> 
+					    <td>{row.hostname}</td> 
+					    <td>{row.campaign}</td> 
+					    <td>{row.product}</td> 
+					    <td>{row.actions}</td> 
+					    <td>{row.button}</td> 
 					    </tr>)
 		       }</tbody>
 
