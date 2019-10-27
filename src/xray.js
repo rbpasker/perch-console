@@ -172,13 +172,17 @@ class XRayServer {
 
 
 // each package is a producer that generates messages
+xrs = null;
 class XRayProducer {
-    xrs = null;
     constructor(id, proto) {
+	// singleton server object
 	if (xrs==null) {
 	    xrs = new XRayServer();
 	    console.log("New server");
+	} else {
+	    console.log("Same server");
 	}
+
  	this.id = id;
 	console.log(this.id);
  	xrs.add(id, this);
