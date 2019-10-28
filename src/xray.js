@@ -3,34 +3,38 @@ const typeCommands	= "commands";
 const typeEnable	= "enable";
 const typeDisable	= "disable";
 const typeError		= "error";
-const typeData		= "data";
 
 const WebSocket = require('ws');
 
 class XRayManager {
-    timeout = 250;
-    theWS = null;
-    port = 9729; // port = XRAY
-    theWss = null;
+    constructor(host) {
+	this.timeout = 250;
+	this.theWS = null;
+	this.port = 9729; // port = XRAY
+	this.host = host;
+	this.theWss = null;
+	this.that = this;
+    }
+
 
     // genericcommand actions
-    oncommands(message)	{ return {} }; // empty response
-    onenable(message)   { return {} }; // empty response
-    ondisable(message)  { return {} }; // empty response
-    ondata(message)	{ return {} }; // empty response
-    onunknown(message)	{ return {} }; // empty response
+    oncommands(message)	{ console.log("oncommands"+message); return {} }; // empty response
+    onenable(message)   { console.log("onenable"+message); return {} }; // empty response
+    ondisable(message)  { console.log("ondisable"+message); return {} }; // empty response
+    ondata(message)	{ console.log("ondata"+message); return {} }; // empty response
+    onunknown(message)	{ console.log("onunknown"+message); return {} }; // empty response
     
     // generic command dispatcher
     dispatch(messageS) {
-	messageJ = JSON.parse(messageS);
+	console.log(`XRAY: rcvd: ${messageS}`);
+	var messageJ = JSON.parse(messageS);
 	// log incoming messages 
-	console.log(`XRAY: rcvd: ${messageJ}`);
 	// dispatcher
-	if (messageJ.command == messageCommands) oncommands(messageJ.message);
-	else if (messageJ.command == messageEnable)   onenable(messageJ.message);
-	else if (messageJ.command == messageDisable)  ondisable(messageJ.message);
-	else if (messageJ.command == messageData)     ondata(messageJ.message);
-	else	                                      unknown(messageJ.message);
+	     if (messageJ.type == typeCommands) XRayManager.prototype.oncommands(messageJ.message);
+	else if (messageJ.type == typeEnable)   XRayManager.prototype.onenable(messageJ.message);
+	else if (messageJ.type == typeDisable)  XRayManager.prototype.ondisable(messageJ.message);
+	else if (messageJ.type == typeMessage)  XRayManager.prototype.ondata(messageJ.message);
+	else	                                XRayManager.prototype.unknown(messageJ.message);
     }
 
     //	
@@ -58,12 +62,14 @@ class XRayManager {
     //		xray.disable("metrics")
     //     
 
-    connect(host) {
-	var theWS = new WebSocket(`ws://${host}:${this.port}`);
+    connect() {
+	const url = `ws://${this.host}:${this.port}`;
+	console.log(`Connect: ${url}`);
+	var theWS = new WebSocket(url);
 	var that = this;
 
 	// wire in the dispatcher
-	theWS.onmessage = message => dispatch(message);
+	theWS.onmessage = event => { XRayManager.prototype.dispatch(event.data); }
 
         // if socket is closed, then backoff and retry
         theWS.onclose = function(e) {
@@ -73,21 +79,28 @@ class XRayManager {
                 e.reason
             );
 	    // set a timer to reconnect
-            connectInterval = setTimeout(this.check, that.timeout);
+            setTimeout(check, that.timeout);
         };
 
 	function check() {
-	    if (!this.ws || this.ws.readyState === WebSocket.CLOSED)
-		this.connect(); // if we don't have a ws, or its closed, then reopen
+	    if (!this.theWS || this.theWS.readyState === WebSocket.CLOSED)
+		that.connect(); // if we don't have a ws, or its closed, then reopen
 	};
+	
+	theWS.onerror = function(event) {
+	    console.error("WebSocket error observed:", event.message);
+	};
+
+
     }
+
 
     // this is the server code
 
     broadcast(json_msg) {
 	this.theWss.clients.forEach( client => {
 	    if (client.readyState === WebSocket.OPEN) {
-		client.send(json_msg);
+		client.send(JSON.stringify(json_msg));
 	    }
 	});
     };
@@ -97,7 +110,8 @@ class XRayManager {
 	this.theWss = new WebSocket.Server({"port":this.port});
 
 	this.theWss.on('message', function (ws, message)  {
-	    pass;
+	    console.log("Server message:" + message);
+	    dispatch(message);
 	});
 
 	this.theWss.on('connection', function(ws, request) {
@@ -131,10 +145,10 @@ class XRayServer {
     constructor() {
 	this.ids = new Map();
 	this.enabled = new Map();
-	this.xrm = new XRayManager();
+	this.xrm = new XRayManager("localhost");
 	this.xrm.enable = this.enable;
 	this.xrm.disable = this.disable;
-	this.xrm.getCommands = this.getCommands;
+	this.xrm.oncommands = this.oncommands;
 	this.xrm.listen();
     }
 
@@ -153,7 +167,7 @@ class XRayServer {
 	this.enabled[id] = false;
 	return false;
     }
-    getCommands() {
+    oncommands() {
 	ids_string = JSON.stringify(this.ids);
 	return {cmd, ids_string};
     }
@@ -195,4 +209,19 @@ class XRayProducer {
     
 }
 
-module.exports = {XRayProducer};
+class XRayConsumer {
+    constructor() {
+	this.xrm = new XRayManager("localhost");
+	this.xrm.connect(); // connect to the server
+	this.xrm.ondata = this.onData;
+
+    }
+
+    onData(message) {
+	console.log("Consumed: " + message);
+    }
+    
+
+}
+
+module.exports = {XRayProducer, XRayConsumer};
