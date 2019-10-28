@@ -21,7 +21,7 @@ class XRayManager {
     oncommands(message)	{ console.log("oncommands"+message); return {} }; // empty response
     onenable(message)   { console.log("onenable"+message); return {} }; // empty response
     ondisable(message)  { console.log("ondisable"+message); return {} }; // empty response
-    ondata(message)	{ console.log("ondata"+message); return {} }; // empty response
+    onmessage(message)	{ console.log("onmessage"+message); return {} }; // empty response
     onunknown(message)	{ console.log("onunknown"+message); return {} }; // empty response
     
     // generic command dispatcher
@@ -33,7 +33,7 @@ class XRayManager {
 	     if (messageJ.type == typeCommands) XRayManager.prototype.oncommands(messageJ.message);
 	else if (messageJ.type == typeEnable)   XRayManager.prototype.onenable(messageJ.message);
 	else if (messageJ.type == typeDisable)  XRayManager.prototype.ondisable(messageJ.message);
-	else if (messageJ.type == typeMessage)  XRayManager.prototype.ondata(messageJ.message);
+	else if (messageJ.type == typeMessage)  XRayManager.prototype.onmessage(messageJ.message);
 	else	                                XRayManager.prototype.unknown(messageJ.message);
     }
 
@@ -43,7 +43,7 @@ class XRayManager {
     // render with the received data
     // 
     //		xray = newXRay();
-    //		xray.ondata = (data) => {this.setState(data);}
+    //		xray.onmessage = (data) => {this.setState(data);}
     //
     // you can also get a list of the commands
     // 
@@ -213,11 +213,11 @@ class XRayConsumer {
     constructor() {
 	this.xrm = new XRayManager("localhost");
 	this.xrm.connect(); // connect to the server
-	this.xrm.ondata = this.onData;
+	this.xrm.onmessage = this.onmessage;
 
     }
 
-    onData(message) {
+    onmessage(message) {
 	console.log("Consumed: " + message);
     }
     
